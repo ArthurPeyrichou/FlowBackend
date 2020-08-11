@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebSocket demo</title>
+    <style type="text/css">
+      body {
+        font-family: "Courier New", sans-serif;
+        text-align: center;
+      }
+      .buttons {
+        font-size: 4em;
+        display: flex;
+        justify-content: center;
+      }
+      .button,
+      .value {
+        line-height: 1;
+        padding: 2rem;
+        margin: 2rem;
+        border: medium solid;
+        min-height: 1em;
+        min-width: 1em;
+      }
+      .button {
+        cursor: pointer;
+        user-select: none;
+      }
+      .minus {
+        color: red;
+      }
+      .plus {
+        color: green;
+      }
+      .value {
+        min-width: 2em;
+      }
+      .state {
+        font-size: 2em;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="justify-content: center;">
+      <div style="display: inline-block; padding: 0.5em;">
+        <select name="pets" id="opt-select" onchange="getSelectValue(this);">
+          <option value="">--Please choose an option--</option>
+          <option value="name">Set Username</option>
+          <option value="createGroup">Create Group</option>
+          <option value="joinGroup">Join a group</option>
+          <option value="leaveGroup">leave group</option>
+          <option value="components">See component</option>
+          <option value="add">Add component</option>
+          <option value="remove">Remove component Index :</option>
+          <option value="save">Apply</option>
+          <option value="broadcast">Broadcast message</option>
+        </select>
+      </div>
+
+      <div style="display: inline-block; padding: 0.5em;">
+        <div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p id="arg1"></p>
+          </div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <input type="text" id="value1" name="name" autocomplete="off" required />
+          </div>
+        </div>
+        <div style="display: none;">
+          <div style="display: inline-block; padding: 0.5em;">
+            <p id="arg2"></p>
+          </div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <input type="text" id="value2" name="name" required />
+          </div>
+        </div>
+      </div>
+
+      <button style="padding: 0.5em;" type="button" id="button">SEND</button>
+      <div>
+        <p id="res"></p>
+      </div>
+
+      <div>
+        <div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p>users online :</p>
+          </div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p id="usernb"></p>
+          </div>
+        </div>
+        <div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p>username :</p>
+          </div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p id="username"></p>
+          </div>
+        </div>
+        <div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p>group :</p>
+          </div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p id="group"></p>
+          </div>
+        </div>
+        <div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p>components :</p>
+          </div>
+          <div style="display: inline-block; padding: 0.5em;">
+            <p id="components"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      var nbUser = 0;
+      var username = null;
+      var group = null;
+      var components = null;
+      var button = document.querySelector("#button");
+      var websocket = new WebSocket("wss://localhost:8765");
+      var selectOpt = document.getElementById("opt-select");
+      function getSelectValue(self) {
+        arg1 = document.getElementById("arg1");
+        arg2 = document.getElementById("arg2");
+        switch (self.value) {
+          case "name":
+            arg1.innerHTML = "Your name : ";
+            break;
+          case "createGroup":
+            arg1.innerHTML = "Group name to create : ";
+            break;
+          case "joinGroup":
+            arg1.innerHTML = "Group name to join :";
+            break;
+          case "leaveGroup":
+            arg1.innerHTML = "Group name to leave :";
+            break;
+          case "components":
+            arg1.innerHTML = "";
+            break;
+          case "add":
+            arg1.innerHTML = "Component to add : ";
+            break;
+          case "remove":
+            arg1.innerHTML = "Component index to remove : ";
+            break;
+          case "save":
+            arg1.innerHTML = "";
+            break;
+          case "broadcast":
+            arg1.innerHTML = "message to broadcast : ";
+            break;
+          default:
+            break;
+        }
+      }      
+  
+      
+
+      button.onclick = function (event) {
+        var e = document.getElementById("opt-select");
+        var type = e.options[e.selectedIndex].value;
+        var inputValue = document.getElementById("value1").value;
+        if(type == "broadcast"){
+          websocket.send(JSON.stringify({ type: type, value: inputValue,  })); 
+        }
+        else {
+          websocket.send(JSON.stringify({ type: type, value: inputValue }));
+        }
+       
+      };
+      
+      websocket.onerror = function (error) {
+        console.error(error);
+      };
+
+      websocket.onmessage = function (event) {
+        console.log(event.data);
+        data = JSON.parse(event.data);
+        usernb_elem = document.getElementById("usernb");
+        username_elem = document.getElementById("username");
+        group_elem = document.getElementById("group");
+        components_elem = document.getElementById("components");
+        value = data.value;
+        if (data.success) {
+          switch (data.type) {
+            case "user_count":
+              nbUser = value;
+              usernb_elem.innerHTML = nbUser;
+              break;
+            case "name":
+              username = value;
+              username_elem.innerHTML = username;
+              break;
+            case "createGroup":
+            case "joinGroup":
+              group = value;
+              group_elem.innerHTML = group;
+              break;
+            case "components":
+              components = value.toString();
+              components_elem.innerHTML = components;
+              break;
+            case "leaveGroup":
+              group = null;
+              components = null;
+
+              components_elem.innerHTML = "";
+              group_elem.innerHTML = "";
+              break;
+            case "BroadcastFromUser":
+              pelem = document.getElementById("res");
+              pelem.innerHTML = "message : " + value + " from " + data.From;
+              break;
+            default:
+              break;
+          }
+          
+          if(data.type != "BroadcastFromUser"){
+            pelem = document.getElementById("res");
+            pelem.innerHTML = "Success";
+          }
+          
+        } else {
+          pelem = document.getElementById("res");
+          pelem.innerHTML = value;
+        }
+
+        // switch (data.type) {
+        //     case 'state':
+        //         value.textContent = data.value;
+        //         break;
+        //     case 'users':
+        //         users.textContent = (
+        //             data.count.toString() + " user" +
+        //             (data.count == 1 ? "" : "s"));
+        //         break;
+        //     default:
+        //         console.error(
+        //             "unsupported event", data);
+        // }
+      };
+    </script>
+  </body>
+</html>
