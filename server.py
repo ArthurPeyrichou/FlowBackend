@@ -34,7 +34,7 @@ async def main(websocket, path):
         if index > -1:
             FLOW = Flow(websocket, USERS[index])
         logging.info(f"   - Registered a new client {websocket}")
-        message = { "type" : "user_count", "body" : len(USERS), "success" : True}
+        message = { "type" : "online", "body" : len(USERS), "success" : True}
         await broadcast(message, websocket)
     
     checkComponents(GROUPS)
