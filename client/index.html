@@ -116,13 +116,13 @@
       </div>
     </div>
     <script>
-      var nbUser = 0;
-      var username = null;
-      var group = null;
-      var components = null;
-      var button = document.querySelector("#button");
-      var websocket = new WebSocket("wss://localhost:8765");
-      var selectOpt = document.getElementById("opt-select");
+      let nbUser = 0;
+      let username = null;
+      let group = null;
+      let components = null;
+      let button = document.querySelector("#button");
+      let websocket = new WebSocket("wss://localhost:8765");
+      let selectOpt = document.getElementById("opt-select");
       function getSelectValue(self) {
         arg1 = document.getElementById("arg1");
         arg2 = document.getElementById("arg2");
@@ -162,9 +162,9 @@
       
 
       button.onclick = function (event) {
-        var e = document.getElementById("opt-select");
-        var type = e.options[e.selectedIndex].value;
-        var inputValue = document.getElementById("value1").value;
+        let e = document.getElementById("opt-select");
+        let type = e.options[e.selectedIndex].value;
+        let inputValue = document.getElementById("value1").value;
         if(type == "broadcast"){
           websocket.send(JSON.stringify({ type: type, value: inputValue,  })); 
         }
