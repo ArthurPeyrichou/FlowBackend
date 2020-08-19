@@ -54,19 +54,28 @@ async def main(websocket, path):
             #If the websocket message is complet
             if isinstance(recvdMsg, str) == False:
                 logging.info(f"\n   - Received: {recvdMsg}")
-                if "type" in recvdMsg:
-                    if recvdMsg["type"] == "auth":
+                if not CLIENTS[index]['isLogin']:
+                    if "type" in recvdMsg and recvdMsg["type"] == "auth":
                         res = {"type" : recvdMsg["type"], "body": {"state": recvdMsg["body"]["state"], "msg": "Couldn't process message", "success" : False}}
-                        res["body"]["success"], res["body"]["msg"] = authService(websocket, CLIENTS[index], recvdMsg["body"]) 
+                        res["body"]["success"], res["body"]["msg"] = authService(CLIENTS[index], recvdMsg["body"]) 
                         await encrypt_msg(websocket, CLIENTS[index]["key"], json.dumps(res))
                         logging.info(f"\033[32m   - Responded {res}")
                         
-                        if recvdMsg["body"]["state"] in ["login", "register"] and CLIENTS[index]["isLogin"] and FLOW is not None: 
-                            await FLOW.onConnect()
-                    elif CLIENTS[index]['isLogin'] and FLOW is not None: 
-                        await FLOW.onMessage(recvdMsg)
-                elif CLIENTS[index]['isLogin'] and FLOW is not None: 
-                        await FLOW.onMessage(recvdMsg)
+                        if recvdMsg["body"]["state"] in ["login", "register"] and CLIENTS[index]["isLogin"]:
+                            await encrypt_msg(websocket, CLIENTS[index]["key"], json.dumps({"type" : "group", "body": {"state": "get", "value": CLIENTS[index]["group"]}}))
+                            if FLOW is not None: 
+                                await FLOW.onConnect()
+                else:
+                    if "type" in recvdMsg and recvdMsg["type"] == "auth":   
+
+                        res = {"type" : recvdMsg["type"], "body": {"state": recvdMsg["body"]["state"], "msg": "Couldn't process message", "success" : False}}
+                        res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], recvdMsg["body"]) 
+
+                        await encrypt_msg(websocket, CLIENTS[index]["key"], json.dumps(res))
+                        logging.info(f"\033[32m   - Responded {res}")
+
+                    elif FLOW is not None: 
+                            await FLOW.onMessage(recvdMsg)
 
             '''elif isinstance(recvdMsg, str) == False
                 logging.warning(f"\n   - Wrong format (ignores), received: {recvdMsg}")'''

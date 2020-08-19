@@ -1,4 +1,5 @@
 from services.Global import *
+from services.Groups import *
 import json
 import os
 appPath = os.path.join('data/')
@@ -13,7 +14,7 @@ def getClientIndex(websocket, clients):
 async def wsClientRegister(websocket, clients):
     index = getClientIndex(websocket, clients)
     if index < 0:
-        clients.append({ "websocket" : websocket, "group" : None, "key" : None, "isLogin": False})
+        clients.append({ "websocket" : websocket, "group" : None, "key" : None, "isLogin": False, "group": False})
         return True, "Client WS registered succesfully."
     else:
         return False, "Client already registered."
@@ -27,11 +28,10 @@ async def wsClientUnregister(websocket, clients):
         return False, "Client doesn't exist."
 
 def register(client, userName, userPassword):
-    userMatch = False
-    clientsFile = os.path.join(appPath, 'users')
-    if os.path.exists(clientsFile):
-        # Load existing clients
-        with open(clientsFile, 'r') as file:
+    usersFile = os.path.join(appPath, 'users')
+    if os.path.exists(usersFile):
+        # Load existing users
+        with open(usersFile, 'r') as file:
             data = file.read()
             file.close()
             users = json.loads(data)
@@ -48,7 +48,7 @@ def register(client, userName, userPassword):
             client["isLogin"] = True
             client["name"] = userName
             client["id"] = newId
-            with open(clientsFile, 'w') as file:
+            with open(usersFile, 'w') as file:
                 file.write(json.dumps(users))
                 file.close()
                 return True, "User registered successfully."
@@ -56,10 +56,10 @@ def register(client, userName, userPassword):
 
 
 def login(client, userName, userPassword): 
-    clientsFile = os.path.join(appPath, 'users')
-    if os.path.exists(clientsFile):
+    usersFile = os.path.join(appPath, 'users')
+    if os.path.exists(usersFile):
         # Load existing clients
-        with open(clientsFile, 'r') as file:
+        with open(usersFile, 'r') as file:
             data = file.read()
             file.close()
             users = json.loads(data)
@@ -69,7 +69,11 @@ def login(client, userName, userPassword):
                     if user["password"] == saltedPassWord:
                         client["isLogin"] = True
                         client["name"] = userName
-                        client["name"] = user["id"]
+                        client["id"] = user["id"]
+                        res = {"success": False, "msg": ''}
+                        res["succes"],res["msg"] = getUserGroup(user["id"])
+                        if res["succes"]:
+                            client["group"] = json.load(res["msg"])
                         return True, "User login successfully."
                     else:
                         return False, "Wrong password."
@@ -79,13 +83,13 @@ def setClientKey(client, key):
     client["key"] = key
     return True, "User key set successfully."
 
-def authService(websocket, client, msg):
+def authService(client, msg):
     if "state" in msg:
         if msg["state"] == "key":
             return setClientKey(client, msg["key"])
-        if msg["state"] == "register":
+        elif msg["state"] == "register":
             return register(client, msg["userName"], msg["userPassword"])
-        if msg["state"] == "login":
+        elif msg["state"] == "login":
             return login(client, msg["userName"], msg["userPassword"])
     else:
         return False, "Unknown msg, wrong structure."
