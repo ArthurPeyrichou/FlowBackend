@@ -5,7 +5,7 @@ def createGroup(text, groups):
     try:
         if not any(d['group'] == text for d in groups): 
             groups.append({"group" : text, "components": []})
-            with open("./data/groups.txt", "a") as myfile:
+            with open("./data/groups", "a") as myfile:
                 myfile.write(text)
                 myfile.write('\n')
             open("./components/"+text+".txt", 'a').close()

@@ -1,6 +1,6 @@
+from services.Global import *
 import json
 import os
-import logging
 appPath = os.path.join('data/')
 
 def getClientIndex(websocket, clients):
@@ -35,12 +35,19 @@ def register(client, userName, userPassword):
             data = file.read()
             file.close()
             users = json.loads(data)
+            idList = []
             for user in users:
+                idList.append(user["id"])
                 if user["name"] == userName:
                     return False, "User with this name already registered."
-            users.append({"name": userName, "password": userPassword})
+            
+            newId = generateId()
+            while newId in idList:
+                newId = generateId()
+            users.append({"id": newId, "name": userName, "password": saltMessage(userPassword)})
             client["isLogin"] = True
             client["name"] = userName
+            client["id"] = newId
             with open(clientsFile, 'w') as file:
                 file.write(json.dumps(users))
                 file.close()
@@ -56,12 +63,13 @@ def login(client, userName, userPassword):
             data = file.read()
             file.close()
             users = json.loads(data)
+            saltedPassWord = saltMessage(userPassword)
             for user in users:
-                logging.info(f"   - !!!! {user}")
                 if user["name"] == userName:
-                    if user["password"] == userPassword:
+                    if user["password"] == saltedPassWord:
                         client["isLogin"] = True
                         client["name"] = userName
+                        client["name"] = user["id"]
                         return True, "User login successfully."
                     else:
                         return False, "Wrong password."

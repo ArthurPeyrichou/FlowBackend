@@ -15,7 +15,6 @@ import ssl
 import sys
 
 CLIENTS = []
-GROUPS = []
 FLOW = None
 
 async def broadcast(message, websocket):
@@ -64,9 +63,9 @@ async def main(websocket, path):
                         
                         if recvdMsg["body"]["state"] in ["login", "register"] and CLIENTS[index]["isLogin"] and FLOW is not None: 
                             await FLOW.onConnect()
-                    elif FLOW is not None: 
+                    elif CLIENTS[index]['isLogin'] and FLOW is not None: 
                         await FLOW.onMessage(recvdMsg)
-                elif FLOW is not None: 
+                elif CLIENTS[index]['isLogin'] and FLOW is not None: 
                         await FLOW.onMessage(recvdMsg)
 
             '''elif isinstance(recvdMsg, str) == False
