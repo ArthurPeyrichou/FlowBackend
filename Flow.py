@@ -332,12 +332,15 @@ class Flow:
       # New component
       if 'body' not in message:
         message['body'] = None
-      self.install(message['filename'], message['body'])
+      self.install(message['body']['state'], message['body']['filename'], message['body']['fileBody'])
     else:
       logging.warn('Message type unknown [%s] -> dropping...' % (message['type'],))
 
-  def install(self, filename, body):
-    componentsPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'components/')
+  def install(self, state, filename, body):
+    if state == 'component':
+      filePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'components/')
+    elif state == 'asset':
+      filePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'public/')
 
     # Check if the filename is an URL
     if filename[:6] == 'http:/' or filename == 'https:':
@@ -352,7 +355,7 @@ class Flow:
       return
 
     saved = False
-    filepath = os.path.join(componentsPath, filename)
+    filepath = os.path.join(filePath, filename)
     if os.path.exists(filepath):
       os.rename(filepath, filepath + '-save')
       saved = True
