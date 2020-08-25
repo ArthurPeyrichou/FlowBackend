@@ -23,8 +23,8 @@ async def encrypt_msg(websocket, key, msg):
 
         inBytes = msg.encode('utf-8')
         msg_len = len(inBytes)
-        # key size / 8 - 11
-        max_len = 117
+        # key size / 8 - 11 (-1 for security)
+        max_len = 110
         if msg_len <= max_len:
             res = cipher_sending.encrypt(inBytes)
             await websocket.send(b64encode(res).decode('utf-8'))

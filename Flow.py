@@ -16,6 +16,7 @@ import importlib.util
 import urllib.parse
 import requests
 import logging
+import asyncio
 import psutil
 import json
 import os
@@ -58,14 +59,13 @@ class Flow:
     logging.info('------- Loaded -------')
 
     # Send traffic messages
-    Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
+    # Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
 
-  def sendTrafficMessage(self):
+  async def sendTrafficMessage(self):
     MESSAGE_TRAFFIC['body'] = self.traffic
     MESSAGE_TRAFFIC['memory'] = str(psutil.Process(os.getpid()).memory_info()[0] / float(2 ** 20)) + 'MB'
     MESSAGE_TRAFFIC['counter'] += 1
-
-    self.sendMessage(MESSAGE_TRAFFIC)
+    await self.sendMessage(MESSAGE_TRAFFIC)
 
     # Reset inputs, outputs
     for key in self.traffic:
@@ -247,9 +247,9 @@ class Flow:
     MESSAGE_ONLINE['count'] += 1
     await self.sendMessage(MESSAGE_ONLINE)
 
-  def onClose(self):
+  async def onClose(self):
     MESSAGE_ONLINE['count'] -= 1
-    self.sendMessage(MESSAGE_ONLINE)
+    await self.sendMessage(MESSAGE_ONLINE)
 
   async def onMessage(self, message):
     if 'type' not in message:
@@ -268,7 +268,7 @@ class Flow:
       self.updateVariables(message['body'])
     elif message['type'] == 'getvariables':
       MESSAGE_VARIABLES['body'] = self.variablesBody
-      self.sendMessage(MESSAGE_VARIABLES)
+      await self.sendMessage(MESSAGE_VARIABLES)
     elif message['type'] == 'apply':
       self.applyChanges(message['body'])
     elif message['type'] == 'readme':
@@ -278,7 +278,7 @@ class Flow:
         return
       MESSAGE_STATIC['id'] = message['id']
       MESSAGE_STATIC['body'] = self.componentLibrary[comName]['readme']
-      self.sendMessage(MESSAGE_STATIC)
+      await self.sendMessage(MESSAGE_STATIC)
     elif message['type'] == 'html':
       if message['target'] not in self.componentLibrary:
         logging.warn('Component not found in library [%s] -> dropping...' % (message['target'],))
@@ -286,7 +286,7 @@ class Flow:
       com = self.componentLibrary[message['target']]
       MESSAGE_STATIC['id'] = message['id']
       MESSAGE_STATIC['body'] = com['html']
-      self.sendMessage(MESSAGE_STATIC)
+      await self.sendMessage(MESSAGE_STATIC)
     elif message['type'] == 'options':
       if message['target'] not in self.instances:
         logging.warn('Options target not existing [%s] -> dropping...' % (message['target'],))
@@ -327,7 +327,7 @@ class Flow:
         self.instances[ist].errors = {}
 
       self.save()
-      self.sendMessage(MESSAGE_CLEARERRORS)
+      await self.sendMessage(MESSAGE_CLEARERRORS)
     elif message['type'] == 'install':
       # New component
       if 'body' not in message:
@@ -350,7 +350,7 @@ class Flow:
 
       filename = os.path.basename(urllib.parse(filename))
 
-    if filename[-3:] != '.py':
+    if state == 'component' and filename[-3:] != '.py':
       logging.warn('File not ending with .py [%s] dropping...' % (filename,))
       return
 
@@ -373,7 +373,7 @@ class Flow:
       if not hasattr(mod, 'EXPORTS') or 'install' not in mod.EXPORTS:
         logging.warn('Imported module not in the right format. No install function...')
         MESSAGE_ERROR['body'] = 'Incorrect module, no install functions in EXPORTS variable !'
-        self.sendMessage(MESSAGE_ERROR)
+        asyncio.ensure_future(self.sendMessage(MESSAGE_ERROR))
         os.remove(filepath)
         if saved:
           os.rename(filepath + '-save', filepath)
@@ -385,11 +385,11 @@ class Flow:
       if saved:
         os.remove(filepath + '-save')
 
-      self.sendMessage(MESSAGE_DESIGNER)
+      asyncio.ensure_future(self.sendMessage(MESSAGE_DESIGNER))
     except Exception as e:
       logging.error('Error while importing file [%s]: %s' % (filename, e))
       MESSAGE_ERROR['body'] = str(e)
-      self.sendMessage(MESSAGE_ERROR)
+      asyncio.ensure_future(self.sendMessage(MESSAGE_ERROR))
       return
 
   def updateVariables(self, body):
@@ -440,14 +440,14 @@ class Flow:
 
       # Save designer
       self.save()
-      self.sendMessage({
+      asyncio.ensure_future(self.sendMessage({
         'type': 'variables-saved'
-      })
+      }))
     except Exception as e:
-      self.sendMessage({
+      asyncio.ensure_future(self.sendMessage({
         'type': 'variables-error',
         'body': str(e)
-      })
+      }))
 
   def applyChanges(self, body):
     componentsToAdd = []
@@ -499,7 +499,7 @@ class Flow:
     for instID in self.instances:
       MESSAGE_DESIGNER['components'].append(self.instances[instID].save())
     # Send to all other users
-    self.sendMessage(MESSAGE_DESIGNER)
+    asyncio.ensure_future(self.sendMessage(MESSAGE_DESIGNER))
 
   def addInstance(self, com):
     comID = com['id']

@@ -7,6 +7,7 @@
 from Payload import Payload
 from Messages import *
 import logging
+import asyncio
 
 class Component:
   def __init__(self, attrs, libraryOpts, flowInstance):
@@ -82,21 +83,23 @@ class Component:
     self.events[eventName](self, args)
 
   def debug(self, data, style=None, group=None, id=None):
-    MESSAGE_DEBUG['group'] = group
+    message_debug = {'type': MESSAGE_DEBUG['type']}
+    message_debug['group'] = group
 
     if isinstance(data, Exception):
-      MESSAGE_DEBUG['body'] = {
+      message_debug['body'] = {
         'error' : data.message,
         'stack': ''
       }
     else:
-      MESSAGE_DEBUG['body'] = data
+      message_debug['body'] = str(data)
 
-    MESSAGE_DEBUG['identificator'] = id
-    MESSAGE_DEBUG['time'] = None
-    MESSAGE_DEBUG['style'] = style if style is not None else 'info'
-    MESSAGE_DEBUG['id'] = self.id
-    self.flow.sendMessage(MESSAGE_DEBUG)
+    message_debug['identificator'] = id
+    message_debug['time'] = None
+    message_debug['style'] = style if style is not None else 'info'
+    message_debug['id'] = self.id
+
+    asyncio.ensure_future(self.flow.sendMessage(message_debug))
 
   def updateConnections(self, conn):
     self.connections = conn if conn is not None else {}
@@ -111,16 +114,24 @@ class Component:
     # Reset list
     self.outputComponentAlreadyListed = {}
 
+    if index != '-1' and 'debug' in self.options and self.options['debug']:
+      self.debug(data.data, None, None, self.id)
+
     if index is None:
       # Send through all outputs
       # {'0': [{'index': '0', 'id': '1578503223401'}]}
       for conn in self.connections:
-        if conn != '99': # Ignore bug output
+        if conn != '-1': # Ignore bug output
           self.flow.updateTraffic(self.id, 'output', None, conn, size=data.getSize())
           self.sendToIndex(data, conn)
     else:
       self.flow.updateTraffic(self.id, 'output', None, index, size=data.getSize())
-      if index not in self.connections:
+      if index == '-1':
+        MESSAGE_ERROR['id'] = self.id
+        MESSAGE_ERROR['body'] = data.data
+        asyncio.ensure_future(self.flow.sendMessage(MESSAGE_ERROR))
+        return
+      elif index not in self.connections:
         logging.warn('No output connection with this index [%s] -> dropping...' % (index,))
         return
 
@@ -146,14 +157,14 @@ class Component:
     MESSAGE_ERRORS['id'] = self.id
     MESSAGE_ERRORS['body'] = self.errors
 
-    self.flow.sendMessage(MESSAGE_ERRORS)
+    asyncio.ensure_future(self.flow.sendMessage(MESSAGE_ERRORS))
     self.throw(error)
 
     if 'error' in self.events:
       self.emit('error', error, parent)
 
   def throw(self, data):
-    self.send(data, 99)
+    self.send(data, -1)
 
   def sendToIndex(self, data, index):
     targets = self.connections[str(index)]
@@ -183,7 +194,7 @@ class Component:
       if ist.id in self.flow.traffic:
         self.flow.traffic[ist.id]['ci'] = ist.countInputs
 
-      self.flow.sendTrafficMessage()
+      asyncio.ensure_future(self.flow.sendTrafficMessage())
 
       # Keep trace of data send
       self.flow.onGoing += 1
