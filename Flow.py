@@ -59,13 +59,14 @@ class Flow:
     logging.info('------- Loaded -------')
 
     # Send traffic messages
-    # Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
+    Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
 
-  async def sendTrafficMessage(self):
-    MESSAGE_TRAFFIC['body'] = self.traffic
-    MESSAGE_TRAFFIC['memory'] = str(psutil.Process(os.getpid()).memory_info()[0] / float(2 ** 20)) + 'MB'
-    MESSAGE_TRAFFIC['counter'] += 1
-    await self.sendMessage(MESSAGE_TRAFFIC)
+  def sendTrafficMessage(self):
+    message_traffic = {'type': MESSAGE_TRAFFIC['type'], 'counter': MESSAGE_TRAFFIC['counter']}
+    message_traffic['body'] = self.traffic
+    message_traffic['memory'] = str(psutil.Process(os.getpid()).memory_info()[0] / float(2 ** 20)) + 'MB'
+    message_traffic['counter'] += 1
+    asyncio.ensure_future(self.sendMessage(message_traffic))
 
     # Reset inputs, outputs
     for key in self.traffic:

@@ -1,0 +1,5 @@
+requests
+psutil
+python-dateutil
+websockets
+pycryptodome

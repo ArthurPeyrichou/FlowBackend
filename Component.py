@@ -194,7 +194,7 @@ class Component:
       if ist.id in self.flow.traffic:
         self.flow.traffic[ist.id]['ci'] = ist.countInputs
 
-      asyncio.ensure_future(self.flow.sendTrafficMessage())
+      self.flow.sendTrafficMessage()
 
       # Keep trace of data send
       self.flow.onGoing += 1
