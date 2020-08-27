@@ -1,4 +1,3 @@
-from Crypto.Cipher import AES, PKCS1_OAEP
 from base64 import b64decode, b64encode
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
@@ -22,19 +21,22 @@ async def encrypt_msg(websocket, key, msg):
         rsa_sending_key = RSA.importKey(key)
         cipher_sending = PKCS1_v1_5.new(rsa_sending_key)
 
-        msg_len = len(msg)
-        if msg_len <= 100:
-            res = cipher_sending.encrypt(msg.encode('utf-8'))
+        inBytes = msg.encode('utf-8')
+        msg_len = len(inBytes)
+        # key size / 8 - 11 (-1 for security)
+        max_len = 110
+        if msg_len <= max_len:
+            res = cipher_sending.encrypt(inBytes)
             await websocket.send(b64encode(res).decode('utf-8'))
         else :
             offset = 0
-            res =''
+            res = ''
             while offset < msg_len:
-                size = min(100, msg_len - offset)
+                size = min(max_len, msg_len - offset)
                 if (offset + size - msg_len) == 0:
-                    res += b64encode(cipher_sending.encrypt(msg[-size:].encode('utf-8'))).decode("utf-8")
+                    res += b64encode(cipher_sending.encrypt(inBytes[-size:])).decode("utf-8")
                 else: 
-                    res += b64encode(cipher_sending.encrypt(msg[offset:offset + size - msg_len].encode('utf-8'))).decode("utf-8")
+                    res += b64encode(cipher_sending.encrypt(inBytes[offset:offset + size - msg_len])).decode("utf-8")
                     res += ','
                 offset += size
             await websocket.send(res)
