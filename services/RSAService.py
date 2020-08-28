@@ -7,7 +7,7 @@ from Crypto import Random
 rsa_receiving_key = RSA.importKey(open("keys/rsa_2048_priv.pem", "rb").read())
 cipher_receiving = PKCS1_v1_5.new(rsa_receiving_key)
 
-def decrypt_msg(cryptedMsg):
+def rsa_decrypt(cryptedMsg):
     h = cryptedMsg.split(',')
     res = ''
     i = 0
@@ -16,7 +16,7 @@ def decrypt_msg(cryptedMsg):
         i += 1  
     return res
 
-async def encrypt_msg(websocket, key, msg):
+def rsa_encrypt(key, msg):
     if key != None:
         rsa_sending_key = RSA.importKey(key)
         cipher_sending = PKCS1_v1_5.new(rsa_sending_key)
@@ -27,7 +27,7 @@ async def encrypt_msg(websocket, key, msg):
         max_len = 110
         if msg_len <= max_len:
             res = cipher_sending.encrypt(inBytes)
-            await websocket.send(b64encode(res).decode('utf-8'))
+            return b64encode(res).decode('utf-8')
         else :
             offset = 0
             res = ''
@@ -39,4 +39,5 @@ async def encrypt_msg(websocket, key, msg):
                     res += b64encode(cipher_sending.encrypt(inBytes[offset:offset + size - msg_len])).decode("utf-8")
                     res += ','
                 offset += size
-            await websocket.send(res)
+            return res
+    return ''

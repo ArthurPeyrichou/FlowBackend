@@ -1,34 +1,43 @@
-# FlowBackend
+Backend, operating around parallelized autonomous cores that will be built by
+operators who are experts in their fields.
+=============================================================
 
-Prérequis
+PEYRICHOU Arthur
+
+Prerequisite
 =============
 
-Installez les modules python nécessaires :
+Install the necessary python modules (they are in requirements.txt file)
 
-`pip install websockets`
-`pip install pycryptodome`
+Generate a private key, rename it ssl-key.pem and put it in the keys/ folder.
 
-Générez une clef privé, renommez la ssl-key.pem et mettez la dans le dossier keys/.
+Generate an ssl certificate key, rename it https-cert.pem and put it in the keys/ folder.
 
-Générez une clef de certificat ssl, renommez la https-cert.pem et mettez la dans le dossier keys/.
-
-Générez un couple clef privée/public de taille 2048, renommez les rsa_2048_priv.pem, rsa_2048_pub.pem et mettez les dans le dossier keys/.
+Generate a private/ public key pair of size 2048, rename them "rsa_2048_priv.pem" and "rsa_2048_pub.pem", then put them in the keys/ folder.
 
 
-Pour générer les clefs nécessaires depuis la racine du projet:
+To generate the necessary keys from the root of the project:
 
 openssl genrsa -out keys/rsa_2048_priv.pem 2048 && openssl rsa -pubout -in keys/rsa_2048_priv.pem -out keys/rsa_2048_pub.pem
 
 openssl genrsa -out keys/ssl-key.pem 4096 && openssl req -new -x509 -key keys/ssl-key.pem -out keys/ssl-cert.pem -days 1095
 
 
-Configuration
+Configurations
 =============
 
 Pour démarrer le serveur websocket, taper :
 
 `py server.py`
 
-> Le serveur tourne sur le port 8765 par default (https://localhost:8765)
+> The server is running on port 5001 by default (https://localhost:5001)
 
-Si vous utilisez un certificat ssl que vous avez créé vous-même; vous devez utiliser un navigateur, vous rendre sur l'adresse ci-dessus, et clicker sur "Détails" puis sur "Accepter les risques" pour pouvoir communiquer par la suite.
+If you are using an ssl certificate that you created yourself; you must use a browser, go to the address above, it will stop you with an warning. Click on "Details" then on "Accept the risks" to be able to communicate thereafter.
+
+Docker
+=============
+
+To start the server vue.JS with docker, go to the root folder and type :
+
+`docker build -t dataflow:backend .`
+`docker run -it -p 5001:5001 --rm --name dataflow:backend-1 dataflow:backend`

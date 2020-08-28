@@ -9,6 +9,15 @@ def generateId(length = 10):
         i +=1
     return res
 
+def generateKey(length = 256):
+    res = ''
+    chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    i = 0
+    while (i < length):
+        res += chars[random.randint(0, len(chars)-1)]
+        i +=1
+    return res
+
 #TODO
 def saltMessage(msg):
     salt = uuid.uuid4().hex

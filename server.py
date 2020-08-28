@@ -3,7 +3,7 @@
 from LoggerFormater import (LoggerFormatter, loggingWebsocket)
 from Flow import Flow
 from services.Authentification import *
-from services.Encryption import *
+from services.RSAService import *
 from services.Groups import *
 from services.Save import *
 import websockets
@@ -19,7 +19,7 @@ FLOW = None
 
 async def broadcast(message, websocket):
     if CLIENTS:  # asyncio.wait doesn't accept an empty list
-        await asyncio.wait([encrypt_msg(user["websocket"], user["key"], json.dumps(message)) for user in CLIENTS])
+        await asyncio.wait([user["websocket"].send(rsa_encrypt(user["key"], json.dumps(message))) for user in CLIENTS])
 
 async def main(websocket, path):
     #This part register the client if not registered yet. If new client, broadcast new client count
@@ -38,7 +38,7 @@ async def main(websocket, path):
 
         async for cryptedMsg in websocket:
             #Receive a new message crypted
-            myJson = json.loads(decrypt_msg(cryptedMsg))
+            myJson = json.loads(rsa_decrypt(cryptedMsg))
             #If the websocket message is in many parts
             if "msg" in myJson:
                 if myJson["msg"] == "start":
@@ -58,11 +58,11 @@ async def main(websocket, path):
                     if "type" in recvdMsg and recvdMsg["type"] == "auth":
                         res = {"type" : recvdMsg["type"], "body": {"state": recvdMsg["body"]["state"], "msg": "Couldn't process message", "success" : False}}
                         res["body"]["success"], res["body"]["msg"] = authService(CLIENTS[index], recvdMsg["body"]) 
-                        await encrypt_msg(websocket, CLIENTS[index]["key"], json.dumps(res))
+                        await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
                         logging.info(f"\033[32m   - Responded {res}")
                         
                         if recvdMsg["body"]["state"] in ["login", "register"] and CLIENTS[index]["isLogin"]:
-                            await encrypt_msg(websocket, CLIENTS[index]["key"], json.dumps({"type" : "group", "body": {"state": "get", "value": CLIENTS[index]["group"]}}))
+                            await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps({"type" : "group", "body": {"state": "get", "value": CLIENTS[index]["group"]}})))
                             if FLOW is not None: 
                                 await FLOW.onConnect()
                 else:
@@ -71,7 +71,7 @@ async def main(websocket, path):
                         res = {"type" : recvdMsg["type"], "body": {"state": recvdMsg["body"]["state"], "msg": "Couldn't process message", "success" : False}}
                         res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], recvdMsg["body"]) 
 
-                        await encrypt_msg(websocket, CLIENTS[index]["key"], json.dumps(res))
+                        await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
                         logging.info(f"\033[32m   - Responded {res}")
 
                     elif FLOW is not None: 

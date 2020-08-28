@@ -5,7 +5,7 @@ Inspired from
 - Title: DataFlow
 - Github: https://github.com/Rarioty/DataFlow
 """
-from services.Encryption import *
+from services.RSAService import *
 from Component import Component
 from ast import literal_eval
 from threading import Timer
@@ -238,7 +238,7 @@ class Flow:
 
   async def sendMessage(self, obj):
     logging.info(f"\033[32m   - Responded {obj}")
-    await encrypt_msg(self.websocket, self.user["key"], json.dumps(obj))
+    await self.websocket.send(rsa_encrypt(self.user["key"], json.dumps(obj)))
 
   async def onConnect(self):
     await self.sendMessage(MESSAGE_DESIGNER)
