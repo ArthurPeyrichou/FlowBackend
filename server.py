@@ -38,47 +38,63 @@ async def main(websocket, path):
 
         async for cryptedMsg in websocket:
             #Receive a new message crypted
-            myJson = json.loads(rsa_decrypt(cryptedMsg))
-            #If the websocket message is in many parts
-            if "msg" in myJson:
-                if myJson["msg"] == "start":
-                    recvdMsg = myJson["body"]
-                elif myJson["msg"] == "middle":
-                    recvdMsg += myJson["body"]
-                elif myJson["msg"] == "end":
-                    recvdMsg += myJson["body"]  
-                    recvdMsg = json.loads(recvdMsg)
-            else :
-                recvdMsg = myJson
+            recvdMsg = json.loads(rsa_decrypt(cryptedMsg))
+            logging.info(f"\n   - Received: {recvdMsg}")
 
-            #If the websocket message is complet
-            if isinstance(recvdMsg, str) == False:
-                logging.info(f"\n   - Received: {recvdMsg}")
-                if not CLIENTS[index]['isLogin']:
-                    if "type" in recvdMsg and recvdMsg["type"] == "auth":
-                        res = {"type" : recvdMsg["type"], "body": {"state": recvdMsg["body"]["state"], "msg": "Couldn't process message", "success" : False}}
+            #If the user is not login yet
+            if not CLIENTS[index]['isLogin']:
+        
+                if "type" in recvdMsg and recvdMsg["type"] == "auth":
+                    res = getMsgStructure(recvdMsg["type"], recvdMsg["body"]["state"], "Couldn't process message")
+                    res["body"]["success"], res["body"]["msg"] = authService(CLIENTS[index], recvdMsg["body"]) 
+                    await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
+                    logging.info(f"\033[32m   - Responded {res}")
+                    
+                    #If the user is just logged, send him his eventual group and invitations and run Flow
+                    if recvdMsg["body"]["state"] in ["login", "register"] and CLIENTS[index]["isLogin"]:
+                        res = getMsgStructure("group", "get", "Couldn't process message")
+                        res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], {'state': 'get'}) 
+                        await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
+                        logging.info(f"\033[32m   - Send {res}")
+
+                        res = getMsgStructure("group", "invitations", "Couldn't process message")
+                        res["body"]["success"], res["body"]["msg"] =  groupService(CLIENTS[index], {'state': 'invitations'}) 
+                        await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
+                        logging.info(f"\033[32m   - Send {res}")
+
+                        if FLOW is not None: 
+                            await FLOW.onConnect()
+            #The user have been login
+            else:
+                #The user asking for logout
+                if "type" in recvdMsg and recvdMsg["type"] == "auth":
+                    if recvdMsg["body"]["state"] == "logout":
+                        await FLOW.onClose()
+                        res = getMsgStructure(recvdMsg["type"], recvdMsg["body"]["state"], "Couldn't process message")
                         res["body"]["success"], res["body"]["msg"] = authService(CLIENTS[index], recvdMsg["body"]) 
                         await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
                         logging.info(f"\033[32m   - Responded {res}")
-                        
-                        if recvdMsg["body"]["state"] in ["login", "register"] and CLIENTS[index]["isLogin"]:
-                            await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps({"type" : "group", "body": {"state": "get", "value": CLIENTS[index]["group"]}})))
-                            if FLOW is not None: 
-                                await FLOW.onConnect()
-                else:
-                    if "type" in recvdMsg and recvdMsg["type"] == "auth":   
+                #group management
+                elif "type" in recvdMsg and recvdMsg["type"] == "group":  
+                    res = getMsgStructure(recvdMsg["type"], recvdMsg["body"]["state"], "Couldn't process message")
+                    res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], recvdMsg["body"]) 
 
-                        res = {"type" : recvdMsg["type"], "body": {"state": recvdMsg["body"]["state"], "msg": "Couldn't process message", "success" : False}}
-                        res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], recvdMsg["body"]) 
+                    await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
+                    logging.info(f"\033[32m   - Responded {res}")
 
-                        await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
-                        logging.info(f"\033[32m   - Responded {res}")
+                    res = getMsgStructure("group", "get", "Couldn't process message")
+                    res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], {'state': 'get'}) 
+                    await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
+                    logging.info(f"\033[32m   - Send {res}")
 
-                    elif FLOW is not None: 
-                            await FLOW.onMessage(recvdMsg)
+                    res = getMsgStructure("group", "invitations", "Couldn't process message")
+                    res["body"]["success"], res["body"]["msg"] =  groupService(CLIENTS[index], {'state': 'invitations'}) 
+                    await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
+                    logging.info(f"\033[32m   - Send {res}")
+                #flow management
+                elif FLOW is not None: 
+                        await FLOW.onMessage(recvdMsg)
 
-            '''elif isinstance(recvdMsg, str) == False
-                logging.warning(f"\n   - Wrong format (ignores), received: {recvdMsg}")'''
     finally:
         res["success"], res["body"] =  await wsClientUnregister(websocket, CLIENTS)
         if res["success"] == True:

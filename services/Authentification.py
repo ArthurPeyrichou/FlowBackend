@@ -73,11 +73,18 @@ def login(client, userName, userPassword):
                         res = {"success": False, "msg": ''}
                         res["succes"],res["msg"] = getUserGroup(user["id"])
                         if res["succes"]:
-                            client["group"] = json.load(res["msg"])
+                            client["group"] = json.loads(res["msg"])
                         return True, "User login successfully."
                     else:
                         return False, "Wrong password."
     return False, "User doesn't exist."
+
+def logout(client): 
+    client["isLogin"] = False
+    client["group"] = False
+    client["name"] = ""
+    client["id"] = ""
+    return True, "User logout successfully."
 
 def setClientKey(client, key):
     client["key"] = key
@@ -91,5 +98,7 @@ def authService(client, msg):
             return register(client, msg["userName"], msg["userPassword"])
         elif msg["state"] == "login":
             return login(client, msg["userName"], msg["userPassword"])
+        elif msg["state"] == "logout":
+            return logout(client)
     else:
         return False, "Unknown msg, wrong structure."

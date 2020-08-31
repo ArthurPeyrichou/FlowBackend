@@ -23,4 +23,6 @@ def saltMessage(msg):
     salt = uuid.uuid4().hex
     res = hashlib.sha512(msg.encode('utf-8') + salt.encode('utf-8')).hexdigest()
     return msg
-    
+
+def getMsgStructure(aType = '', aState = '', aMsg = ''): 
+    return {'type' : aType, 'body': {'state': aState, 'msg': aMsg, 'success': False}}

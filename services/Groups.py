@@ -1,5 +1,5 @@
-
 from services.Global import *
+import logging
 import json
 import os
 
@@ -7,7 +7,21 @@ appPath = os.path.join('data/')
 groupsFile = os.path.join(appPath, 'groups')
 membersFile = os.path.join(appPath, 'members')
 usersFile = os.path.join(appPath, 'users')
-invitationsFile = os.path.join(appPath, 'invition')
+invitationsFile = os.path.join(appPath, 'invitations')
+
+def getUser(userName):
+    if os.path.exists(usersFile):
+        # Load existing users
+        with open(usersFile, 'r') as file:
+            data = file.read()
+            file.close()
+            users = json.loads(data)
+            for user in users:
+                if user["name"] == userName:
+                    return True, user
+            
+            return False, "No user found."
+    return False, "Get user failed."
 
 def createGroup(groupName, client):
     if os.path.exists(groupsFile):
@@ -18,8 +32,8 @@ def createGroup(groupName, client):
             groups = json.loads(data)
             idList = []
             for group in groups:
-                idList.append(group["id"])
-                if group["name"] == groupName:
+                idList.append(group['id'])
+                if group['name'] == groupName:
                     return False, "A group with this name already exist."
             
             newId = generateId()
@@ -28,17 +42,22 @@ def createGroup(groupName, client):
             groups.append({"id": newId, "name": groupName})
             
             res = {"msg": '', "success": False}
-            res["success"],res["msg"] = createMember(newId, client['id'], 'leader')
-            if res["success"]:
+            res['success'],res['msg'] = createMember(newId, client['id'], 'leader')
+            if res['success']:
                 with open(groupsFile, 'w') as file:
                     file.write(json.dumps(groups))
                     file.close()
                 client['group'] = {"id": newId, "name": groupName}
-            return res["success"], "Group created succesfully. You are the leader of this group."
+            return res['success'], "Group created succesfully. You are the leader of this group."
     return False, "Group creation failed."
 
 #It does not check if the userId and the groupId exist
-def createInvitationInGroup(userId, groupId):
+def createInvitationInGroup(userName, groupId):
+    res = {'success': False, 'user': ''}
+    res['success'], res['user'] = getUser(userName)
+    if res['success'] == False:
+        return res['success'], res['user']
+
     if os.path.exists(invitationsFile):
         # Load existing invitations
         with open(invitationsFile, 'r') as file:
@@ -47,14 +66,14 @@ def createInvitationInGroup(userId, groupId):
             invitations = json.loads(data)
             idList = []
             for invitation in invitations:
-                idList.append(invitation["id"])
-                if invitation["group"] == groupId and invitation["user"] == userId:
+                idList.append(invitation['id'])
+                if invitation['group'] == groupId and invitation['user'] == res['user']['id']:
                     return False, "A invitation from this group to this user already exist."
             
             newId = generateId()
             while newId in idList:
                 newId = generateId()
-            invitations.append({"id": newId, "group": groupId, "user": userId})
+            invitations.append({"id": newId, "group": groupId, "user": res['user']['id']})
             with open(invitationsFile, 'w') as file:
                 file.write(json.dumps(invitations))
                 file.close()
@@ -70,8 +89,8 @@ def createMember(groupId, userId, status = 'guest'):
             members = json.loads(data)
             idList = []
             for member in members:
-                idList.append(member["id"])
-                if member["user"] == userId:
+                idList.append(member['id'])
+                if member['user'] == userId:
                     return False, "You are already member of a group."
             
             newId = generateId()
@@ -85,7 +104,7 @@ def createMember(groupId, userId, status = 'guest'):
     return False, "Member creation failed."
 
 #It does not warn other member that he's joining the group
-def acceptInvitAndJoinGroup(invitationId):
+def acceptInvitAndJoinGroup(client, invitationId):
     res = {"msg": '', "success": False}
     if os.path.exists(invitationsFile):
         # Load existing invitation
@@ -93,33 +112,36 @@ def acceptInvitAndJoinGroup(invitationId):
             data = file.read()
             file.close()
             invitations = json.loads(data)
-            saltedPassWord = saltMessage(userPassword)
             for invitation in invitations:
-                if invitation["id"] == invitationId:
-                    res["success"],res["msg"] = createMember(invitation["group"], invitation["user"])
-                    if res["success"]:
-                        invitations.pop(invitation)
-                        for invitToDrop in invitations:
-                            if invitToDrop["user"] == invitation["user"]:
-                                invitations.pop(invitToDrop)
-                    return res["success"], "Group joined succesfully. You are a guest of this group."
+                if invitation['id'] == invitationId:
+                    res['success'],res['msg'] = createMember(invitation['group'], invitation['user'])
+                    if res['success']:
+                        invitations.remove(invitation)
+                        with open(invitationsFile, 'w') as file:
+                            file.write(json.dumps(invitations))
+                            file.close()
+                        res["succes"],res["msg"] = getUserGroup(invitation['user'])
+                        if res["succes"]:
+                            client["group"] = json.loads(res["msg"])
+                        return res['success'], "Group joined succesfully. You are a guest of this group."
    
     return False, "Invitation doesn't exist."
 
 #It does not warn other member that he's declining the invitation
 def declineInvitInGroup(invitationId):
-    res = {"msg": '', "success": False}
     if os.path.exists(invitationsFile):
         # Load existing invitation
         with open(invitationsFile, 'r') as file:
             data = file.read()
             file.close()
             invitations = json.loads(data)
-            saltedPassWord = saltMessage(userPassword)
             for invitation in invitations:
-                if invitation["id"] == invitationId:
-                    invitations.pop(invitation)
-                    return res["success"], "Group invitation declined succesfully."
+                if invitation['id'] == invitationId:
+                    invitations.remove(invitation)
+                    with open(invitationsFile, 'w') as file:
+                        file.write(json.dumps(invitations))
+                        file.close()
+                        return True, "Group invitation declined succesfully."
    
     return False, "Invitation doesn't exist."
 
@@ -132,13 +154,17 @@ def leaveGroup(client):
             file.close()
             members = json.loads(data)
             for member in members:
-                if member["user"] == client['id']:
-                    members.pop(member)
-                    with open(membersFile, 'w') as file:
-                        file.write(json.dumps(members))
-                        file.close()
-                        client['group'] = False
-                        return True, "Group leaved successfully."  
+                if member['user'] == client['id']:
+                    members.remove(member)
+                    if member['status'] == 'leader':
+                        deleteGroup(member['group'])
+                        return True, "Group deleted successfully." 
+                    else:
+                        with open(membersFile, 'w') as file:
+                            file.write(json.dumps(members))
+                            file.close()
+                            client['group'] = False
+                            return True, "Group leaved successfully."  
             return False, "You are not member of a group."
     return False, "Group leaving failed."
 
@@ -151,8 +177,8 @@ def deleteGroup(groupId):
             file.close()
             groups = json.loads(data)
             for group in groups:
-                if groups["id"] == groupId:
-                    groups.pop(group)
+                if group['id'] == groupId:
+                    groups.remove(group)
                     with open(membersFile, 'w') as file:
                         file.write(json.dumps(groups))
                         file.close()
@@ -162,8 +188,8 @@ def deleteGroup(groupId):
                             file.close()
                             members = json.loads(data)
                             for member in members:
-                                if member["group"] == groupId:
-                                    members.pop(member)
+                                if member['group'] == groupId:
+                                    members.remove(member)
                             with open(membersFile, 'w') as file:
                                 file.write(json.dumps(members))
                                 file.close()
@@ -173,8 +199,8 @@ def deleteGroup(groupId):
                             file.close()
                             invitations = json.loads(data)
                             for invitation in invitations:
-                                if invitation["group"] == groupId:
-                                    invitations.pop(invitation)
+                                if invitation['group'] == groupId:
+                                    invitations.remove(invitation)
                             with open(invitationsFile, 'w') as file:
                                 file.write(json.dumps(invitations))
                                 file.close()
@@ -191,15 +217,15 @@ def getUserGroup(userId):
             file.close()
             members = json.loads(data)
             for member in members:
-                if member["user"] == userId:
+                if member['user'] == userId:
                     # Load existing groups
                     with open(groupsFile, 'r') as file:
                         data = file.read()
                         file.close()
                         groups = json.loads(data) 
                         for group in groups:
-                            if group['id'] == member["group"]:
-                                return True, json.dumps({'groupId': member["group"], 'groupName': group['name'], 'status': member["status"]})
+                            if group['id'] == member['group']:
+                                return True, json.dumps({'groupId': member['group'], 'groupName': group['name'], 'status': member['status']})
                         return False, "No group with the given identifiant find."
             return False, "This user have no group."
 
@@ -247,21 +273,23 @@ def getGroupMembers(groupId):
                 return True, json.dumps(groupMembers)
     return False, "Group's members recovery failed."
 
-def groupService(websocket, client, msg):
+def groupService(client, msg):
     if "state" in msg:
-        if msg["state"] == "create":
-            return createGroup( msg["groupName"], client)
-        elif msg["state"] == "invite":
-            return createInvitationInGroup(msg["userId"], client["group"]["id"])
-        elif msg["state"] == "join":
-            return acceptInvitAndJoinGroup(msg["invitationId"])
-        elif msg["state"] == "decline":
-            return declineInvitInGroup(msg["invitationId"])
-        elif msg["state"] == "leave":
+        if msg['state'] == "create":
+            return createGroup( msg['group'], client)
+        elif msg['state'] == "invit":
+            return createInvitationInGroup(msg['user'], client['group']['groupId'])
+        elif msg['state'] == "join":
+            return acceptInvitAndJoinGroup(client, msg['invitationId'])
+        elif msg['state'] == "decline":
+            return declineInvitInGroup(msg['invitationId'])
+        elif msg['state'] == "leave":
             return leaveGroup(client)
-        elif msg["state"] == "invitations":
-            return getUserInvitations(client["id"])
-        elif msg["state"] == "members":
-            return getGroupMembers(client["group"]["id"])
+        elif msg['state'] == "invitations":
+            return getUserInvitations(client['id'])
+        elif msg['state'] == "members":
+            return getGroupMembers(client['group']['groupId'])
+        elif msg['state'] == "get":
+            return True, client["group"]
     else:
         return False, "Unknown msg, wrong structure."
