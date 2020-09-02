@@ -1,10 +1,12 @@
 from base64 import b64decode, b64encode
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
-from Crypto.Hash import SHA
 from Crypto import Random
+import math
 
-rsa_receiving_key = RSA.importKey(open("keys/rsa_2048_priv.pem", "rb").read())
+keySize = 4096
+maxTextLength = math.ceil(keySize) / 8 - 12
+rsa_receiving_key = RSA.importKey(open("keys/rsa_4096_priv.pem", "rb").read())
 cipher_receiving = PKCS1_v1_5.new(rsa_receiving_key)
 
 def rsa_decrypt(cryptedMsg):
@@ -13,7 +15,7 @@ def rsa_decrypt(cryptedMsg):
     i = 0
     while i < len(h):
         res += cipher_receiving.decrypt(b64decode(h[i]), Random.new().read(256)).decode("utf-8")
-        i += 1  
+        i += 1
     return res
 
 def rsa_encrypt(key, msg):
@@ -23,16 +25,14 @@ def rsa_encrypt(key, msg):
 
         inBytes = msg.encode('utf-8')
         msg_len = len(inBytes)
-        # key size / 8 - 11 (-1 for security)
-        max_len = 110
-        if msg_len <= max_len:
+        if msg_len <= maxTextLength:
             res = cipher_sending.encrypt(inBytes)
             return b64encode(res).decode('utf-8')
         else :
             offset = 0
             res = ''
             while offset < msg_len:
-                size = min(max_len, msg_len - offset)
+                size = min(maxTextLength, msg_len - offset)
                 if (offset + size - msg_len) == 0:
                     res += b64encode(cipher_sending.encrypt(inBytes[-size:])).decode("utf-8")
                 else: 

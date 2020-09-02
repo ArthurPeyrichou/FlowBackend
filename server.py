@@ -118,7 +118,7 @@ try:
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ssl_context.load_cert_chain('keys/ssl-cert.pem', 'keys/ssl-key.pem')
 
-    logging.info("---     Running server on localhost:8765     ---")
+    logging.info("---     Running server on localhost:5001     ---")
     asyncio.get_event_loop().run_until_complete(
         websockets.serve(main, 'localhost', 5001, ssl=ssl_context))
     logging.info('--- Server listening, press any key to abort ---\n')
