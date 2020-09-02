@@ -2,14 +2,18 @@ from base64 import b64decode, b64encode
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 from Crypto import Random
+import urllib.parse
 import math
 
 keySize = 4096
-maxTextLength = math.ceil(keySize) / 8 - 12
+maxTextLength = math.ceil(keySize / 8) - 15
 rsa_receiving_key = RSA.importKey(open("keys/rsa_4096_priv.pem", "rb").read())
 cipher_receiving = PKCS1_v1_5.new(rsa_receiving_key)
+isSecurityActive = False
 
 def rsa_decrypt(cryptedMsg):
+    if not isSecurityActive: 
+        return urllib.parse.unquote(cryptedMsg)
     h = cryptedMsg.split(',')
     res = ''
     i = 0
@@ -19,6 +23,8 @@ def rsa_decrypt(cryptedMsg):
     return res
 
 def rsa_encrypt(key, msg):
+    if not isSecurityActive: 
+        return urllib.parse.quote(msg)
     if key != None:
         rsa_sending_key = RSA.importKey(key)
         cipher_sending = PKCS1_v1_5.new(rsa_sending_key)
