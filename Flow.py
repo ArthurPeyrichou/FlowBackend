@@ -59,7 +59,7 @@ class Flow:
     logging.info('------- Loaded -------')
 
     # Send traffic messages
-    Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
+    # Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
 
   def sendTrafficMessage(self):
     message_traffic = {'type': MESSAGE_TRAFFIC['type'], 'counter': MESSAGE_TRAFFIC['counter']}

@@ -20,7 +20,7 @@ To generate the necessary keys from the root of the project:
 
 openssl genrsa -out keys/rsa_4096_priv.pem 4096 && openssl rsa -pubout -in keys/rsa_4096_priv.pem -out keys/rsa_4096_pub.pem
 
-openssl genrsa -out keys/ssl-key.pem 4096 && openssl req -new -x509 -key keys/ssl-key.pem -out keys/ssl-cert.pem -days 1095
+openssl genrsa -out keys/ssl-key.pem 4096 && openssl req -new -x509 -key keys/ssl-key.pem -out keys/ssl-cert.pem -days 365 -subj '/CN=localhost'
 
 
 Configurations

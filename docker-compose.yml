@@ -1,9 +1,0 @@
-version: '3'
-services:
-  backend:
-    build:
-      context: ../
-      dockerfile: Dockerfile
-    container_name: dataflow-backend
-    ports:
-      - 5001:5001

@@ -67,7 +67,7 @@ class Component:
     MESSAGE_STATUS['target'] = self.id
     MESSAGE_STATUS['body'] = self.state
 
-    self.flow.sendMessage(MESSAGE_STATUS)
+    asyncio.ensure_future(self.flow.sendMessage(MESSAGE_STATUS))
 
   def on(self, eventName, func):
     if eventName in self.events:
@@ -116,6 +116,9 @@ class Component:
 
     if index != '-1' and 'debug' in self.options and self.options['debug']:
       self.debug(data.data, None, None, self.id)
+
+    if index != '-1':
+      asyncio.ensure_future(self.flow.sendMessage({'type': 'status', 'target': self.id, 'body': {'text': 'Finished'}}))
 
     if index is None:
       # Send through all outputs
