@@ -120,7 +120,7 @@ try:
 
     logging.info("---     Running server on localhost:5001     ---")
     asyncio.get_event_loop().run_until_complete(
-        websockets.serve(main, 'localhost', 5001, ssl=ssl_context))
+        websockets.serve(main, '0.0.0.0', 5001, ssl=ssl_context))
     logging.info('--- Server listening, press any key to abort ---\n')
     asyncio.get_event_loop().run_forever()
 except KeyboardInterrupt as error:

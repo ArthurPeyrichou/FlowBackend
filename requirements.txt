@@ -3,3 +3,5 @@ psutil
 python-dateutil
 websockets
 pycryptodome
+pandas
+wget
