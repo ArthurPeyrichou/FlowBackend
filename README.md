@@ -4,6 +4,10 @@ operators who are experts in their fields.
 
 PEYRICHOU Arthur
 
+## Notes 
+
+The backend is is using components that are stored in [another repository](https://github.com/ArthurPeyrichou/FlowComponents)
+
 Prerequisite
 =============
 
@@ -38,7 +42,7 @@ Docker
 To start the server vue.JS with docker, go to the root folder and type :
 
 Don't forget to install first components in components/ folder if needed.
-Link: https://github.com/Rarioty/DataFlow-Components.git
+Link: https://github.com/ArthurPeyrichou/FlowComponents
 
 - `docker build -t dataflow:backend .`
 - `docker run -it -p 5001:5001 --rm --name dataflow-backend-1 dataflow:backend`
@@ -47,6 +51,10 @@ Caution
 =============
 
 If you are using a ssl certificate that you created automatically, you must use a browser, go to the address above (https://localhost:5001), it will stop you with a warning. Click on "Details" then on "Accept the risks" to be able to communicate thereafter. Then it will tail you that the connection can't be done because you request a https connection and it is a websocket communication but the ssh certificat is now accepted and the frontend can communicate with the backend.
+
+License
+=============
+[MIT](LICENSE)
 
 Thanks
 =============
