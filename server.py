@@ -7,6 +7,7 @@ from services.RSAService import *
 from services.Groups import *
 from services.Save import *
 import websockets
+import argparse
 import pathlib
 import logging
 import asyncio
@@ -105,8 +106,13 @@ async def main(websocket, path):
             message = { "type" : "online", "body" : len(CLIENTS), "success" : True}
             await broadcast(message, websocket)
 
-
 try:
+    # Configuring arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-wss', '--websocketssl', help='Run server in ssl communication', action='store_true')
+    parser.add_argument('-c', '--crypto', help='Run server with encrypt and decrypt communication', action='store_true')
+    args = parser.parse_args()
+
     # Configuring logging for output in terminal
     fmt = LoggerFormatter()
     myHandler = logging.StreamHandler(sys.stdout)
@@ -114,13 +120,22 @@ try:
     logging.root.addHandler(myHandler)
     logging.root.setLevel(logging.INFO)
 
-    # Configuring ssl certificat for wss
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ssl_context.load_cert_chain('keys/ssl-cert.pem', 'keys/ssl-key.pem')
+    if args.crypto:
+        isSecurityActive = True
+        logging.info("---     Secure message with RSA crypting activated     ---")
+        logging.warn("!!     Be sure to activate security in client side     !!")
 
-    logging.info("---     Running server on localhost:5001     ---")
-    asyncio.get_event_loop().run_until_complete(
-        websockets.serve(main, '0.0.0.0', 5001, ssl=ssl_context))
+    # Configuring ssl certificat for wss
+    if args.websocketssl:
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_context.load_cert_chain('keys/ssl-cert.pem', 'keys/ssl-key.pem')
+
+    if args.websocketssl:
+        logging.info("---     Running server on wss:5001     ---")
+        asyncio.get_event_loop().run_until_complete(websockets.serve(main, '0.0.0.0', 5001, ssl=ssl_context))
+    else :
+        logging.info("---     Running server on ws:5001     ---")
+        asyncio.get_event_loop().run_until_complete(websockets.serve(main, '0.0.0.0', 5001))
     logging.info('--- Server listening, press any key to abort ---\n')
     asyncio.get_event_loop().run_forever()
 except KeyboardInterrupt as error:

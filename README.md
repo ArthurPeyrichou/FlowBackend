@@ -34,6 +34,10 @@ To start websocket server, type :
 
 - `py server.py`
 
+Options :
+-c or -crypto for RSA crypting in communication
+-wss or -websocketssl for ssl certificate
+
 > The server is running on port 5001 by default (wss://localhost:5001)
 
 Docker
