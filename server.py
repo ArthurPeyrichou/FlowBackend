@@ -7,6 +7,7 @@ from services.RSAService import *
 from services.Groups import *
 from services.Save import *
 import websockets
+import traceback
 import argparse
 import pathlib
 import logging
@@ -16,7 +17,7 @@ import ssl
 import sys
 
 CLIENTS = []
-FLOW = None
+FLOWS = []
 
 async def broadcast(message, websocket):
     if CLIENTS:  # asyncio.wait doesn't accept an empty list
@@ -24,15 +25,13 @@ async def broadcast(message, websocket):
 
 async def main(websocket, path):
     #This part register the client if not registered yet. If new client, broadcast new client count
-    
     res = {"body": "", "success" : False}
     res["success"], res["body"] = await wsClientRegister(websocket, CLIENTS)
 
     try:
         if res["success"] == True:
             index = getClientIndex(websocket, CLIENTS)
-            if index > -1:
-                FLOW = Flow(websocket, CLIENTS[index])
+            FLOWS.append(Flow(CLIENTS[index]))
             logging.info(f"   - Registered a new client {websocket}")
             message = { "type" : "online", "body" : len(CLIENTS), "success" : True}
             await broadcast(message, websocket)
@@ -63,14 +62,16 @@ async def main(websocket, path):
                         await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
                         logging.info(f"\033[32m   - Send {res}")
 
-                        if FLOW is not None: 
-                            await FLOW.onConnect()
+                        #If the user is part of a group
+                        logging.warning(CLIENTS[index]["group"])
+                        if CLIENTS[index]["group"] is not False:
+                            await FLOWS[index].onConnect()
             #The user have been login
             else:
                 #The user asking for logout
                 if "type" in recvdMsg and recvdMsg["type"] == "auth":
                     if recvdMsg["body"]["state"] == "logout":
-                        await FLOW.onClose()
+                        await FLOWS[index].onClose()
                         res = getMsgStructure(recvdMsg["type"], recvdMsg["body"]["state"], "Couldn't process message")
                         res["body"]["success"], res["body"]["msg"] = authService(CLIENTS[index], recvdMsg["body"]) 
                         await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
@@ -80,8 +81,19 @@ async def main(websocket, path):
                     res = getMsgStructure(recvdMsg["type"], recvdMsg["body"]["state"], "Couldn't process message")
                     res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], recvdMsg["body"]) 
 
+                    #If the user create or join a group
+                    if (recvdMsg["body"]["state"] == "create" or recvdMsg["body"]["state"] == "join") and res["body"]["success"] is True:
+                        res["body"]["group"] = recvdMsg["body"]["group"]
+                        if CLIENTS[index]["group"] is not False:
+                            await FLOWS[index].onConnect()
+
                     await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
                     logging.info(f"\033[32m   - Responded {res}")
+
+                    #If the user delete or leave a group
+                    if recvdMsg["body"]["state"] == "leave" and res["body"]["success"] is True:
+                        if CLIENTS[index]["group"] is False:
+                            await FLOWS[index].onClose()
 
                     res = getMsgStructure("group", "get", "Couldn't process message")
                     res["body"]["success"], res["body"]["msg"] = groupService(CLIENTS[index], {'state': 'get'}) 
@@ -93,15 +105,18 @@ async def main(websocket, path):
                     await websocket.send(rsa_encrypt(CLIENTS[index]["key"], json.dumps(res)))
                     logging.info(f"\033[32m   - Send {res}")
                 #flow management
-                elif FLOW is not None: 
-                        await FLOW.onMessage(recvdMsg)
+                else:
+                    await FLOWS[index].onMessage(recvdMsg)
 
-    finally:
+    except Exception:
+        logging.error(f" Exception occured: {traceback.format_exc()}")
+
+        if CLIENTS[index]["group"] is not False:
+            await FLOWS[index].onClose()
         res["success"], res["body"] =  await wsClientUnregister(websocket, CLIENTS)
         if res["success"] == True:
+            FLOWS.pop(index)
             index = getClientIndex(websocket, CLIENTS)
-            if index > -1:
-                FLOW = Flow(websocket, CLIENTS[index])
             logging.info(f"   - One client leaved server: {websocket}")
             message = { "type" : "online", "body" : len(CLIENTS), "success" : True}
             await broadcast(message, websocket)
@@ -137,6 +152,7 @@ try:
         logging.info("---     Running server on ws:5001     ---")
         asyncio.get_event_loop().run_until_complete(websockets.serve(main, '0.0.0.0', 5001))
     logging.info('--- Server listening, press any key to abort ---\n')
+
     asyncio.get_event_loop().run_forever()
 except KeyboardInterrupt as error:
     logging.warning('\n--- Keyboard pressed  ---')

@@ -1,9 +1,11 @@
 from services.Global import *
 import logging
+import shutil
 import json
 import os
 
 appPath = os.path.join('data/')
+flowPath = os.path.join('flow/')
 groupsFile = os.path.join(appPath, 'groups')
 membersFile = os.path.join(appPath, 'members')
 usersFile = os.path.join(appPath, 'users')
@@ -17,7 +19,7 @@ def getUser(userName):
             file.close()
             users = json.loads(data)
             for user in users:
-                if user["name"] == userName:
+                if user['name'] == userName:
                     return True, user
             
             return False, "No user found."
@@ -47,8 +49,10 @@ def createGroup(groupName, client):
                 with open(groupsFile, 'w') as file:
                     file.write(json.dumps(groups))
                     file.close()
-                client['group'] = {"id": newId, "name": groupName}
-            return res['success'], "Group created succesfully. You are the leader of this group."
+                client['group'] = {'groupId': newId, 'groupName':groupName, 'status': 'leader'}
+                dataflowFolder = os.path.join(flowPath, 'flow-' + str(newId) + '/')
+                os.mkdir(dataflowFolder)
+                return res['success'], "Group created succesfully. You are the leader of this group."
     return False, "Group creation failed."
 
 #It does not check if the userId and the groupId exist
@@ -120,9 +124,9 @@ def acceptInvitAndJoinGroup(client, invitationId):
                         with open(invitationsFile, 'w') as file:
                             file.write(json.dumps(invitations))
                             file.close()
-                        res["succes"],res["msg"] = getUserGroup(invitation['user'])
-                        if res["succes"]:
-                            client["group"] = json.loads(res["msg"])
+                        res['succes'],res['msg'] = getUserGroup(invitation['user'])
+                        if res['succes']:
+                            client['group'] = json.loads(res['msg'])
                         return res['success'], "Group joined succesfully. You are a guest of this group."
    
     return False, "Invitation doesn't exist."
@@ -158,6 +162,9 @@ def leaveGroup(client):
                     members.remove(member)
                     if member['status'] == 'leader':
                         deleteGroup(member['group'])
+                        dataflowFolder = os.path.join(flowPath, 'flow-' + member['group'] + '/')
+                        client['group'] = False
+                        shutil.rmtree(dataflowFolder)
                         return True, "Group deleted successfully." 
                     else:
                         with open(membersFile, 'w') as file:
@@ -179,7 +186,7 @@ def deleteGroup(groupId):
             for group in groups:
                 if group['id'] == groupId:
                     groups.remove(group)
-                    with open(membersFile, 'w') as file:
+                    with open(groupsFile, 'w') as file:
                         file.write(json.dumps(groups))
                         file.close()
                         # Load existing members
@@ -290,6 +297,6 @@ def groupService(client, msg):
         elif msg['state'] == "members":
             return getGroupMembers(client['group']['groupId'])
         elif msg['state'] == "get":
-            return True, client["group"]
+            return True, client['group']
     else:
         return False, "Unknown msg, wrong structure."

@@ -22,18 +22,8 @@ import json
 import os
 
 class Flow:
-  def __init__(self, websocket, user):
-    self.websocket = websocket
+  def __init__(self, user):
     self.user = user
-    self.appPath = os.path.join('flow/')
-
-    if not os.path.exists(self.appPath):
-      logging.info('Saved files folder not existing, creating...')
-      os.mkdir(self.appPath)
-
-    if not os.path.isdir(self.appPath):
-      logging.error('Saved file folder is a not a folder ! Exitting')
-      raise Exception('Saved folder error')
 
     # Variables
     self.variables = {}
@@ -53,10 +43,6 @@ class Flow:
       'count': 0
     }
     self.onGoing = 0
-
-    logging.info('-- Loading designer --')
-    self.load()
-    logging.info('------- Loaded -------')
 
     # Send traffic messages
     # Timer(1.0, lambda: Flow.sendTrafficMessage(self)).start()
@@ -238,19 +224,27 @@ class Flow:
 
   async def sendMessage(self, obj):
     logging.info(f"\033[32m   - Responded {obj}")
-    await self.websocket.send(rsa_encrypt(self.user["key"], json.dumps(obj)))
+    await self.user["websocket"].send(rsa_encrypt(self.user["key"], json.dumps(obj)))
 
   async def onConnect(self):
-    await self.sendMessage(MESSAGE_DESIGNER)
+    self.appPath = os.path.join('flow/flow-' + self.user['group']['groupId'] + '/')
 
-    if 'count' not in MESSAGE_ONLINE:
-      MESSAGE_ONLINE['count'] = 0
-    MESSAGE_ONLINE['count'] += 1
-    await self.sendMessage(MESSAGE_ONLINE)
+    if not os.path.exists(self.appPath):
+      logging.info('Saved files folder not existing, creating...')
+      os.mkdir(self.appPath)
+
+    if not os.path.isdir(self.appPath):
+      logging.error('Saved file folder is a not a folder ! Exitting')
+      raise Exception('Saved folder error')
+
+    logging.info('-- Loading designer --')
+    self.load()
+    logging.info('------- Loaded -------')
+
+    await self.user["websocket"].send(rsa_encrypt(self.user["key"], json.dumps(MESSAGE_DESIGNER)))
 
   async def onClose(self):
-    MESSAGE_ONLINE['count'] -= 1
-    await self.sendMessage(MESSAGE_ONLINE)
+    self.save()
 
   async def onMessage(self, message):
     if 'type' not in message:
