@@ -130,9 +130,10 @@ class Component:
     else:
       self.flow.updateTraffic(self.id, 'output', None, index, size=data.getSize())
       if index == '-1':
-        MESSAGE_ERROR['id'] = self.id
-        MESSAGE_ERROR['body'] = data.data
-        asyncio.ensure_future(self.flow.sendMessage(MESSAGE_ERROR))
+        message_error = {'type': MESSAGE_ERROR['type']}
+        message_error['id'] = self.id
+        message_error['body'] = data.data
+        asyncio.ensure_future(self.flow.sendMessage(message_error))
         return
       elif index not in self.connections:
         logging.warn('No output connection with this index [%s] -> dropping...' % (index,))
